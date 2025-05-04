@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app2
+  labels: # replicaset labels
+    app: nginx
+    tier: frontend
+spec:
+  # modify replicas according to your case
+  replicas: 1
+  selector:
+    matchLabels: # selector labels
+      tier: frontend
+      app: nginx
+  template:
+    metadata:
+      labels: # pod labels
+        tier: frontend
+        app: nginx
+    spec:
+      containers:
+      - name: app1
+        image: joindevops/app1:v1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app2-service
+spec:
+  selector:
+    tier: frontend
+    app: nginx
+  ports:
+  - name: app2-serviceport
+    protocol: TCP
+    port: 80 #service port
+    targetPort: 80 # container port
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+    name: app2
+    annotations:
+      #kubernetes.io/ingress.class: alb
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:481155270892:certificate/269fb396-43f8-4a71-9265-563d9a8a2ebf
+      alb.ingress.kubernetes.io/listen-ports: '[ {"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/tags: Environment=dev,Team=test
+      alb.ingress.kubernetes.io/group.name: expense
+spec:
+    ingressClassName: alb
+    rules:
+    - host: "app2.expense.thevenkat.xyz"
+      http:
+        paths:
+        - pathType: Prefix
+          path: "/"
+          backend:
+            service:
+              name: app2-service
+              port:
+                number: 80
